@@ -11,6 +11,8 @@ class Board:
     def __init__(self):
         self.squares = [[0, 0, 0, 0, 0, 0, 0, 0] for col in range(COLS)]
         self.last_move = None
+        self.promotion_pending = None
+        self.move_history = [] # List of (piece_name, initial, final)
         self._create()
         self._add_pieces('white')
         self._add_pieces('black')
@@ -18,6 +20,9 @@ class Board:
     def move(self, piece, move, testing=False):
         initial = move.initial
         final = move.final
+
+        if not testing:
+            self.move_history.append((piece.name, initial, final))
 
         en_passant_empty = self.squares[final.row][final.col].isempty()
 
@@ -62,7 +67,7 @@ class Board:
 
     def check_promotion(self, piece, final):
         if final.row == 0 or final.row == 7:
-            self.squares[final.row][final.col].piece = Queen(piece.color)
+            self.promotion_pending = (piece, final)
 
     def castling(self, initial, final):
         return abs(initial.col - final.col) == 2
@@ -227,7 +232,6 @@ class Board:
                             if not self.in_check(piece, move):
                                 # append new move
                                 piece.add_move(move)
-                            else: break
                         else:
                             # append new move
                             piece.add_move(move)
@@ -301,7 +305,8 @@ class Board:
                     if self.squares[possible_move_row][possible_move_col].isempty_or_enemy(piece.color):
                         # create squares of the new move
                         initial = Square(row, col)
-                        final = Square(possible_move_row, possible_move_col) # piece=piece
+                        final_piece = self.squares[possible_move_row][possible_move_col].piece
+                        final = Square(possible_move_row, possible_move_col, final_piece)
                         # create new move
                         move = Move(initial, final)
                         # check potencial checks
@@ -309,7 +314,6 @@ class Board:
                             if not self.in_check(piece, move):
                                 # append new move
                                 piece.add_move(move)
-                            else: break
                         else:
                             # append new move
                             piece.add_move(move)
@@ -424,6 +428,36 @@ class Board:
 
         elif isinstance(piece, King): 
             king_moves()
+
+    def check_game_over(self, color):
+        has_moves = False
+        for row in range(ROWS):
+            for col in range(COLS):
+                if self.squares[row][col].has_team_piece(color):
+                    p = self.squares[row][col].piece
+                    self.calc_moves(p, row, col, bool=True)
+                    if len(p.moves) > 0:
+                        has_moves = True
+                        break
+            if has_moves: break
+        
+        if has_moves:
+            return None
+            
+        in_check = False
+        for row in range(ROWS):
+            for col in range(COLS):
+                if self.squares[row][col].has_enemy_piece(color):
+                    p = self.squares[row][col].piece
+                    self.calc_moves(p, row, col, bool=False)
+                    for m in p.moves:
+                        if isinstance(m.final.piece, King):
+                            in_check = True
+                            break
+                if in_check: break
+            if in_check: break
+            
+        return 'checkmate' if in_check else 'stalemate'
 
     def _create(self):
         for row in range(ROWS):
