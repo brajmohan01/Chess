@@ -4,7 +4,7 @@ import json
 import threading
 
 class Network:
-    def __init__(self, host='ws://127.0.0.1:5555'):
+    def __init__(self, host='https://chess-qhpg.onrender.com'):
         # Once you deploy to Render, change this host to: 
         # 'wss://your-service-name.onrender.com'
         self.host = host
